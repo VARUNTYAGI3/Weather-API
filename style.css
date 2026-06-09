@@ -38,6 +38,7 @@ body {
   justify-content: center;
   gap: 10px;
   animation: fadeIn 0.8s ease-out 0.2s backwards;
+  position: relative;
 }
 
 .search input {
@@ -195,6 +196,36 @@ body {
   font-weight: 500;
 }
 
+.suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+  z-index: 10;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.suggestions div {
+  padding: 10px;
+  cursor: pointer;
+  color: #333;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  transition: background 0.2s ease;
+}
+
+.suggestions div:hover {
+  background: rgba(0, 254, 186, 0.2);
+}
+
+.suggestions div:last-child {
+  border-bottom: none;
+}
+
 /* Animations */
 @keyframes slideDown {
   from {
@@ -272,12 +303,10 @@ body {
   }
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
