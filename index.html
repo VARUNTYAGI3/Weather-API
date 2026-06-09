@@ -43,49 +43,104 @@
     </div>
 
     <script>
-        const apiKey = "56b3dcdde8d9449d2237d34e02556b25";
-        const apiUrl = "https://api.openweathermap.org/data/2.5/weather?units=metric&q=";
+        const geocodingUrl = "https://geocoding-api.open-meteo.com/v1/search?name=";
+        const weatherUrl = "https://api.open-meteo.com/v1/forecast?current_weather=true&hourly=relativehumidity_2m&temperature_unit=celsius&windspeed_unit=kmh&timezone=auto";
 
         const searchbox = document.querySelector(".search input");
         const searchbtn = document.querySelector(".search button");
         const weathericon = document.querySelector(".weather-icon");
 
         async function checkWeather(city) {
-            const response = await fetch(apiUrl + city + `&appid=${apiKey}`);
-            if (response.status == 404) {
-                document.querySelector(".error").style.display = "block";
-                document.querySelector(".weather").style.display = "none";
-            }
-            else {
-                var data = await response.json();
-                
-                document.querySelector(".city").innerHTML = data.name;
-                document.querySelector(".temp").innerHTML = Math.round(data.main.temp) + "°C";
-                document.querySelector(".humidity").innerHTML = data.main.humidity + "%";
-                document.querySelector(".wind").innerHTML = data.wind.speed + "km/h";
+            if (!city) return;
 
-                if (data.weather[0].main == "Clouds") {
-                    weathericon.src = "images/clouds.png";
+            try {
+                const geocodeResponse = await fetch(geocodingUrl + encodeURIComponent(city));
+                const geoData = await geocodeResponse.json();
+
+                if (!geoData.results || geoData.results.length === 0) {
+                    showError();
+                    return;
                 }
-                else if (data.weather[0].main == "Clear") {
-                    weathericon.src = "images/clear.png";
+
+                const location = geoData.results[0];
+                const weatherResponse = await fetch(`${weatherUrl}&latitude=${location.latitude}&longitude=${location.longitude}`);
+                const weatherData = await weatherResponse.json();
+
+                if (!weatherData.current_weather) {
+                    showError();
+                    return;
                 }
-                else if (data.weather[0].main == "Rain") {
-                    weathericon.src = "images/rain.png";
-                }
-                else if (data.weather[0].main == "Drizzle") {
-                    weathericon.src = "images/drizzle.png";
-                }
-                else if (data.weather[0].main == "Mist") {
-                    weathericon.src = "images/mist.png";
-                }
+
+                const currentTime = weatherData.current_weather.time;
+                const humidityValue = getNearestHumidity(currentTime, weatherData.hourly.time, weatherData.hourly.relativehumidity_2m);
+
+                document.querySelector(".city").innerHTML = `${location.name}${location.country ? ", " + location.country : ""}`;
+                document.querySelector(".temp").innerHTML = Math.round(weatherData.current_weather.temperature) + "°C";
+                document.querySelector(".humidity").innerHTML = humidityValue !== null ? humidityValue + "%" : "N/A";
+                document.querySelector(".wind").innerHTML = Math.round(weatherData.current_weather.windspeed) + " km/h";
+                weathericon.src = getWeatherIcon(weatherData.current_weather.weathercode);
+
                 document.querySelector(".weather").style.display = "block";
                 document.querySelector(".error").style.display = "none";
             }
-
+            catch (error) {
+                console.error(error);
+                showError();
+            }
         }
+
+        function getWeatherIcon(code) {
+            if (code === 0) return "images/clear.png";
+            if ([1, 2, 3].includes(code)) return "images/clouds.png";
+            if ([45, 48].includes(code)) return "images/mist.png";
+            if ([51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99].includes(code)) return "images/rain.png";
+            if ([56, 57, 66, 67].includes(code)) return "images/drizzle.png";
+            if ([71, 73, 75, 77, 85, 86].includes(code)) return "images/clouds.png";
+            return "images/clouds.png";
+        }
+
+        function getNearestHumidity(currentTime, times, humidity) {
+            if (!times || !humidity || times.length === 0 || humidity.length === 0) {
+                return null;
+            }
+
+            const target = Date.parse(currentTime);
+            if (Number.isNaN(target)) {
+                return null;
+            }
+
+            let nearestValue = null;
+            let nearestDiff = Infinity;
+
+            times.forEach((time, index) => {
+                const parsed = Date.parse(time);
+                if (Number.isNaN(parsed)) {
+                    return;
+                }
+
+                const diff = Math.abs(parsed - target);
+                if (diff < nearestDiff) {
+                    nearestDiff = diff;
+                    nearestValue = humidity[index];
+                }
+            });
+
+            return nearestValue !== undefined ? nearestValue : null;
+        }
+
+        function showError() {
+            document.querySelector(".error").style.display = "block";
+            document.querySelector(".weather").style.display = "none";
+        }
+
         searchbtn.addEventListener("click", () => {
             checkWeather(searchbox.value);
+        });
+
+        searchbox.addEventListener("keyup", (event) => {
+            if (event.key === "Enter") {
+                checkWeather(searchbox.value);
+            }
         });
 
     </script>
